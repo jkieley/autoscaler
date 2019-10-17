@@ -342,7 +342,7 @@ func main() {
 	go func() {
 		http.Handle("/metrics", prometheus.Handler())
 		http.Handle("/health-check", healthCheck)
-		http.Handle("/trigger-scal-up", healthCheck)
+		http.HandleFunc("/trigger-scal-up", triggerScaleUpHandler)
 		err := http.ListenAndServe(*address, nil)
 		glog.Fatalf("Failed to start metrics: %v", err)
 	}()
