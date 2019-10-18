@@ -265,13 +265,17 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time, triggerScaleUpOverride
 	}
 
 	// scale up logic starts here
-	triggerScaleUp := len(unschedulablePodsToHelp) == 0
-	if triggerScaleUp || triggerScaleUpOverride { // if unschedulable pods
+	// if there are unscheduled pods, and triggerScaleUpOverride == false then true
+	// if there are unscheduled pods, and triggerScaleUpOverride == true then false
+	if len(unschedulablePodsToHelp) == 0 && !triggerScaleUpOverride {
 		glog.V(1).Info("No unschedulable pods")
+
+		// keep as is, we don't want to scale beyond the bounds of the cluster
 	} else if a.MaxNodesTotal > 0 && len(readyNodes) >= a.MaxNodesTotal {
 		// my logic goes here to trigger other cluster to scale
 		glog.V(1).Info("Max total nodes in cluster reached")
-	} else if allPodsAreNew(unschedulablePodsToHelp, currentTime) {
+		// bypass as false, if triggerScaleUpOverride = true
+	} else if !triggerScaleUpOverride && allPodsAreNew(unschedulablePodsToHelp, currentTime) {
 		// The assumption here is that these pods have been created very recently and probably there
 		// is more pods to come. In theory we could check the newest pod time but then if pod were created
 		// slowly but at the pace of 1 every 2 seconds then no scale up would be triggered for long time.
@@ -279,6 +283,8 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time, triggerScaleUpOverride
 		scaleDownForbidden = true
 		glog.V(1).Info("Unschedulable pods are very new, waiting one iteration for more")
 	} else {
+		triggerScaleUpOverride = false
+		glog.V(1).Info("Trigger scale up and mark triggerScaleUpOverride as false")
 		scaleUpStart := time.Now()
 		metrics.UpdateLastTime(metrics.ScaleUp, scaleUpStart)
 
@@ -300,8 +306,10 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time, triggerScaleUpOverride
 		}
 	}
 
+	byPassScaleDown := true
 	//scale down logic starts here
-	if a.ScaleDownEnabled {
+	// remove scale down, temp
+	if a.ScaleDownEnabled && !byPassScaleDown {
 		pdbs, err := pdbLister.List()
 		if err != nil {
 			glog.Errorf("Failed to list pod disruption budgets: %v", err)

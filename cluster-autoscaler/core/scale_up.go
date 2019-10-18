@@ -249,10 +249,10 @@ func ScaleUp(context *context.AutoscalingContext, processors *ca_processors.Auto
 	nodes []*apiv1.Node, daemonSets []*extensionsv1.DaemonSet, nodeInfos map[string]*schedulercache.NodeInfo) (*status.ScaleUpStatus, errors.AutoscalerError) {
 	// From now on we only care about unschedulable pods that were marked after the newest
 	// node became available for the scheduler.
-	if len(unschedulablePods) == 0 {
-		glog.V(1).Info("No unschedulable pods")
-		return &status.ScaleUpStatus{ScaledUp: false}, nil
-	}
+	//if len(unschedulablePods) == 0 {
+	//	glog.V(1).Info("No unschedulable pods")
+	//	return &status.ScaleUpStatus{ScaledUp: false}, nil
+	//}
 
 	now := time.Now()
 
@@ -298,6 +298,7 @@ func ScaleUp(context *context.AutoscalingContext, processors *ca_processors.Auto
 			upcomingNodes = append(upcomingNodes, buildNodeInfoForNodeTemplate(nodeTemplate, i))
 		}
 	}
+	//fmt.Println("Upcoming %d nodes", len(upcomingNodes))
 	glog.V(4).Infof("Upcoming %d nodes", len(upcomingNodes))
 
 	podsPassingPredicates := make(map[string][]*apiv1.Pod)
