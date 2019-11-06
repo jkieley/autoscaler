@@ -44,10 +44,13 @@ type AutoscalerOptions struct {
 
 // Autoscaler is the main component of CA which scales up/down node groups according to its configuration
 // The configuration can be injected at the creation of an autoscaler
+// Autoscaler is an interface
 type Autoscaler interface {
 	// RunOnce represents an iteration in the control-loop of CA
 	RunOnce(currentTime time.Time, triggerScaleUpOverride bool) errors.AutoscalerError
 	// ExitCleanUp is a clean-up performed just before process termination.
+
+	ScaleUp() string
 	ExitCleanUp()
 }
 

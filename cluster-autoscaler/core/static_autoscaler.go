@@ -50,6 +50,7 @@ const (
 )
 
 // StaticAutoscaler is an autoscaler which has all the core functionality of a CA but without the reconfiguration feature
+// StaticAutoscaler is a struct
 type StaticAutoscaler struct {
 	// AutoscalingContext consists of validated settings and options for this autoscaler
 	*context.AutoscalingContext
@@ -106,6 +107,10 @@ func (a *StaticAutoscaler) cleanUpIfRequired() {
 		cleanToBeDeleted(readyNodes, a.AutoscalingContext.ClientSet, a.Recorder)
 	}
 	a.initialized = true
+}
+
+func (a *StaticAutoscaler) ScaleUp() string {
+	return "::"
 }
 
 // RunOnce iterates over node groups and scales them up/down if necessary

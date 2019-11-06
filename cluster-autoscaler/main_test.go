@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"k8s.io/autoscaler/cluster-autoscaler/config"
@@ -90,4 +91,9 @@ func TestParseSingleGpuLimit(t *testing.T) {
 			assert.Equal(t, testcase.expectedLimits, limits)
 		}
 	}
+}
+
+func TestSomething(t *testing.T) {
+	status_string_result := onTriggerScaleUp()
+	fmt.Println(status_string_result)
 }

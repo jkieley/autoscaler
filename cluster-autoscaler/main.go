@@ -150,7 +150,7 @@ var (
 	unremovableNodeRecheckTimeout = flag.Duration("unremovable-node-recheck-timeout", 5*time.Minute, "The timeout before we check again a node that couldn't be removed before")
 	expendablePodsPriorityCutoff  = flag.Int("expendable-pods-priority-cutoff", -10, "Pods with priority below cutoff will be expendable. They can be killed without any consideration during scale down and they don't cause scale up. Pods with null priority (PodPriority disabled) are non expendable.")
 	regional                      = flag.Bool("regional", false, "Cluster is regional.")
-	triggerScaleUpOverride        = false
+	globalAutoScalerVar           core.StaticAutoscaler
 )
 
 func createAutoscalingOptions() config.AutoscalingOptions {
@@ -300,6 +300,7 @@ func run(healthCheck *metrics.HealthCheck) {
 				metrics.UpdateLastTime(metrics.Main, loopStart)
 				healthCheck.UpdateLastActivity(loopStart)
 
+				triggerScaleUpOverride := false
 				err := autoscaler.RunOnce(loopStart, triggerScaleUpOverride)
 				if err != nil && err.Type() != errors.TransientError {
 					metrics.RegisterError(err)
@@ -313,10 +314,31 @@ func run(healthCheck *metrics.HealthCheck) {
 	}
 }
 
+/**
+main.go:304 					err := autoscaler.RunOnce(loopStart, triggerScaleUpOverride)
+core/static_autoscaler.go:291	scaleUpStatus, typedErr := ScaleUp(autoscalingContext, a.processors, a.clusterStateRegistry, unschedulablePodsToHelp, readyNodes, daemonsets, nodeInfosForGroups)
+core/scale_up.go:507 			typedErr := executeScaleUp(context, clusterStateRegistry, info, gpu.GetGpuTypeForMetrics(nodeInfo.Node(), nil))
+core/scale_up.go:596 			if err := info.Group.IncreaseSize(increase); err != nil {
+*/
 // handler echoes the Path component of the requested URL.
 func triggerScaleUpHandler(w http.ResponseWriter, r *http.Request) {
-	triggerScaleUpOverride = true
-	fmt.Fprintf(w, "scale up triggered")
+	scale_status_string := onTriggerScaleUp()
+	fmt.Fprintf(w, scale_status_string)
+}
+
+func onTriggerScaleUp() string {
+	autoscaler, err := buildAutoscaler()
+	if err != nil {
+		glog.Fatalf("Failed to create autoscaler: %v", err)
+	}
+
+	success := true
+	nodeGroup := autoscaler.AutoscalingContext.CloudProvider.NodeGroups()[0]
+	if err := nodeGroup.IncreaseSize(1); err != nil {
+		success = false
+	}
+	scale_status_string := fmt.Sprintf("scale up was successful: %t", success)
+	return scale_status_string
 }
 
 func main() {
