@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
@@ -50,6 +51,7 @@ const (
 )
 
 // StaticAutoscaler is an autoscaler which has all the core functionality of a CA but without the reconfiguration feature
+// StaticAutoscaler is a struct
 type StaticAutoscaler struct {
 	// AutoscalingContext consists of validated settings and options for this autoscaler
 	*context.AutoscalingContext
@@ -108,8 +110,17 @@ func (a *StaticAutoscaler) cleanUpIfRequired() {
 	a.initialized = true
 }
 
+func (a *StaticAutoscaler) ScaleUp() string {
+	success := true
+	nodeGroup := a.AutoscalingContext.CloudProvider.NodeGroups()[0]
+	if err := nodeGroup.IncreaseSize(1); err != nil {
+		success = false
+	}
+	return fmt.Sprintf("scale up was successful: %t", success)
+}
+
 // RunOnce iterates over node groups and scales them up/down if necessary
-func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError {
+func (a *StaticAutoscaler) RunOnce(currentTime time.Time, triggerScaleUpOverride bool) errors.AutoscalerError {
 	a.cleanUpIfRequired()
 
 	unschedulablePodLister := a.UnschedulablePodLister()
@@ -119,6 +130,7 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 	autoscalingContext := a.AutoscalingContext
 
 	glog.V(4).Info("Starting main loop")
+	glog.V(4).Info("triggerScaleUpOverride: %t", triggerScaleUpOverride)
 
 	stateUpdateStart := time.Now()
 	allNodes, readyNodes, typedErr := a.obtainNodeLists()
@@ -263,11 +275,18 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 		glog.V(4).Info("No schedulable pods")
 	}
 
-	if len(unschedulablePodsToHelp) == 0 {
+	// scale up logic starts here
+	// if there are unscheduled pods, and triggerScaleUpOverride == false then true
+	// if there are unscheduled pods, and triggerScaleUpOverride == true then false
+	if len(unschedulablePodsToHelp) == 0 && !triggerScaleUpOverride {
 		glog.V(1).Info("No unschedulable pods")
+
+		// keep as is, we don't want to scale beyond the bounds of the cluster
 	} else if a.MaxNodesTotal > 0 && len(readyNodes) >= a.MaxNodesTotal {
+		// my logic goes here to trigger other cluster to scale
 		glog.V(1).Info("Max total nodes in cluster reached")
-	} else if allPodsAreNew(unschedulablePodsToHelp, currentTime) {
+		// bypass as false, if triggerScaleUpOverride = true
+	} else if !triggerScaleUpOverride && allPodsAreNew(unschedulablePodsToHelp, currentTime) {
 		// The assumption here is that these pods have been created very recently and probably there
 		// is more pods to come. In theory we could check the newest pod time but then if pod were created
 		// slowly but at the pace of 1 every 2 seconds then no scale up would be triggered for long time.
@@ -275,6 +294,8 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 		scaleDownForbidden = true
 		glog.V(1).Info("Unschedulable pods are very new, waiting one iteration for more")
 	} else {
+		triggerScaleUpOverride = false
+		glog.V(1).Info("Trigger scale up and mark triggerScaleUpOverride as false")
 		scaleUpStart := time.Now()
 		metrics.UpdateLastTime(metrics.ScaleUp, scaleUpStart)
 
@@ -296,7 +317,10 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 		}
 	}
 
-	if a.ScaleDownEnabled {
+	byPassScaleDown := true
+	//scale down logic starts here
+	// remove scale down, temp
+	if a.ScaleDownEnabled && !byPassScaleDown {
 		pdbs, err := pdbLister.List()
 		if err != nil {
 			glog.Errorf("Failed to list pod disruption budgets: %v", err)

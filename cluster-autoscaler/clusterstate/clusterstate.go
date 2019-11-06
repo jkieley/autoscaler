@@ -850,6 +850,8 @@ func (csr *ClusterStateRegistry) GetUpcomingNodes() map[string]int {
 	csr.Lock()
 	defer csr.Unlock()
 
+	oneTime := true
+
 	result := make(map[string]int)
 	for _, nodeGroup := range csr.cloudProvider.NodeGroups() {
 		id := nodeGroup.Id()
@@ -857,12 +859,21 @@ func (csr *ClusterStateRegistry) GetUpcomingNodes() map[string]int {
 		ar := csr.acceptableRanges[id]
 		// newNodes is the number of nodes that
 		newNodes := ar.CurrentTarget - (readiness.Ready + readiness.Unready + readiness.LongNotStarted + readiness.LongUnregistered)
+
+		// this function is trying to calculate how many nodes to add, this logic is to force it to have at least 1, while maintain all the same structures
+		if oneTime {
+			newNodes = 1
+			oneTime = false
+		}
+
 		if newNodes <= 0 {
 			// Negative value is unlikely but theoretically possible.
 			continue
 		}
 		result[id] = newNodes
 	}
+	//fmt.Println("GetUpcomingNodes result: ", result)
+	glog.V(1).Info("GetUpcomingNodes result: ", result)
 	return result
 }
 
