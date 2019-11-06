@@ -332,12 +332,7 @@ func onTriggerScaleUp() string {
 		glog.Fatalf("Failed to create autoscaler: %v", err)
 	}
 
-	success := true
-	nodeGroup := autoscaler.AutoscalingContext.CloudProvider.NodeGroups()[0]
-	if err := nodeGroup.IncreaseSize(1); err != nil {
-		success = false
-	}
-	scale_status_string := fmt.Sprintf("scale up was successful: %t", success)
+	scale_status_string := autoscaler.ScaleUp()
 	return scale_status_string
 }
 

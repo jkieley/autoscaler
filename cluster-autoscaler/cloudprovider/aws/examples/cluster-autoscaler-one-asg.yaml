@@ -121,7 +121,7 @@ spec:
     spec:
       serviceAccountName: cluster-autoscaler
       containers:
-        - image: jkieley/cluster-autoscaler:43286937-5527-483E-955C-2C812D10CF48
+        - image: jkieley/cluster-autoscaler:80BA070A-54A8-490A-8E83-6B8534A33F51
           name: cluster-autoscaler
           resources:
             limits:

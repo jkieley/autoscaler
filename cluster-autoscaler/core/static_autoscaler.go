@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
@@ -110,7 +111,12 @@ func (a *StaticAutoscaler) cleanUpIfRequired() {
 }
 
 func (a *StaticAutoscaler) ScaleUp() string {
-	return "::"
+	success := true
+	nodeGroup := a.AutoscalingContext.CloudProvider.NodeGroups()[0]
+	if err := nodeGroup.IncreaseSize(1); err != nil {
+		success = false
+	}
+	return fmt.Sprintf("scale up was successful: %t", success)
 }
 
 // RunOnce iterates over node groups and scales them up/down if necessary
