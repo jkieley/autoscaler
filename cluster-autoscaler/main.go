@@ -330,6 +330,7 @@ func onTriggerScaleUp() string {
 	autoscaler, err := buildAutoscaler()
 	//todo looks like there is an issue with the node group name from this autoscaler, I think it's happening because the autoscaler is already built
 	// retry this same test by using the shared autoscaler
+	// it looks like it worked!!!! retry
 	if err != nil {
 		glog.Fatalf("Failed to create autoscaler: %v", err)
 	}
