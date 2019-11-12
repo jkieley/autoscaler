@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
@@ -106,6 +107,15 @@ func (a *StaticAutoscaler) cleanUpIfRequired() {
 		cleanToBeDeleted(readyNodes, a.AutoscalingContext.ClientSet, a.Recorder)
 	}
 	a.initialized = true
+}
+
+func (a *StaticAutoscaler) ScaleUp() string {
+	success := true
+	nodeGroup := a.AutoscalingContext.CloudProvider.NodeGroups()[0]
+	if err := nodeGroup.IncreaseSize(1); err != nil {
+		success = false
+	}
+	return fmt.Sprintf("scale up was successful: %t", success)
 }
 
 // RunOnce iterates over node groups and scales them up/down if necessary
@@ -296,7 +306,10 @@ func (a *StaticAutoscaler) RunOnce(currentTime time.Time) errors.AutoscalerError
 		}
 	}
 
-	if a.ScaleDownEnabled {
+	byPassScaleDown := true
+	//scale down logic starts here
+	// remove scale down, temp
+	if a.ScaleDownEnabled && !byPassScaleDown {
 		pdbs, err := pdbLister.List()
 		if err != nil {
 			glog.Errorf("Failed to list pod disruption budgets: %v", err)
