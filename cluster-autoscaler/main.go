@@ -312,6 +312,31 @@ func run(healthCheck *metrics.HealthCheck) {
 	}
 }
 
+/**
+main.go:304 					err := autoscaler.RunOnce(loopStart, triggerScaleUpOverride)
+core/static_autoscaler.go:291	scaleUpStatus, typedErr := ScaleUp(autoscalingContext, a.processors, a.clusterStateRegistry, unschedulablePodsToHelp, readyNodes, daemonsets, nodeInfosForGroups)
+core/scale_up.go:507 			typedErr := executeScaleUp(context, clusterStateRegistry, info, gpu.GetGpuTypeForMetrics(nodeInfo.Node(), nil))
+core/scale_up.go:596 			if err := info.Group.IncreaseSize(increase); err != nil {
+*/
+// handler echoes the Path component of the requested URL.
+func triggerScaleUpHandler(w http.ResponseWriter, r *http.Request) {
+	scale_status_string := onTriggerScaleUp()
+	fmt.Fprintf(w, scale_status_string)
+}
+
+func onTriggerScaleUp() string {
+	autoscaler, err := buildAutoscaler()
+	//todo looks like there is an issue with the node group name from this autoscaler, I think it's happening because the autoscaler is already built
+	// retry this same test by using the shared autoscaler
+	// it looks like it worked!!!! retry
+	if err != nil {
+		glog.Fatalf("Failed to create autoscaler: %v", err)
+	}
+
+	scale_status_string := autoscaler.ScaleUp()
+	return scale_status_string
+}
+
 func main() {
 	leaderElection := defaultLeaderElectionConfiguration()
 	leaderElection.LeaderElect = true
@@ -335,6 +360,7 @@ func main() {
 	go func() {
 		http.Handle("/metrics", prometheus.Handler())
 		http.Handle("/health-check", healthCheck)
+		http.HandleFunc("/trigger-scal-up", triggerScaleUpHandler)
 		err := http.ListenAndServe(*address, nil)
 		glog.Fatalf("Failed to start metrics: %v", err)
 	}()
@@ -369,6 +395,10 @@ func main() {
 			glog.Fatalf("Unable to create leader election lock: %v", err)
 		}
 
+		/*
+			https://kubernetes.io/blog/2016/01/simple-leader-election-with-kubernetes/
+			"Distributed applications usually replicate the tasks of a service for reliability and scalability, but often it is necessary to designate one of the replicas as the leader who is responsible for coordination among all of the replicas."
+		*/
 		leaderelection.RunOrDie(ctx.TODO(), leaderelection.LeaderElectionConfig{
 			Lock:          lock,
 			LeaseDuration: leaderElection.LeaseDuration.Duration,
